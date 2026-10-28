@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 """事实核对：把 content.yaml 里的每个数字拿回原文比对。
 
-    python tools/fact_check.py projects/sodium-ion-capacitor/content.yaml
-    python tools/fact_check.py projects/xxx/content.yaml --src projects/xxx/_src/paper.txt
+    python tools/fact_check.py projects/<项目>/content.yaml
+    python tools/fact_check.py projects/<项目>/content.yaml --src <原文.txt>
 
 为什么要有这一步：PPT 上的数字一旦写错，讲的时候就是错的，事后没人复核。
 本脚本把配置里的全部数值 token 抽出来，逐个到原文里找；找不到的报出来，
 要么改数，要么进白名单（影响因子、分区这类论文里没有的外部信息）。
+
+比对按**完整数值**做，不做子串匹配：配置里的 0.7 不会因为原文有 10.7 就算
+找到，30 也不会藏进 300。原文写成 0.70、1,700 这类等价写法仍算命中。
 
 白名单文件：与 content.yaml 同级的 `_src/facts_allow.txt`，一行一个数值，
 `#` 后可写原因。白名单只豁免「原文没有但确实正确」的外部数据，
@@ -16,8 +19,13 @@ import argparse
 import os
 import re
 import sys
+from decimal import Decimal, InvalidOperation
 
 import yaml
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 NUM = re.compile(r"\d+(?:\.\d+)?")
 
@@ -28,6 +36,23 @@ def norm(s: str) -> str:
     for ch in ("−", "–", "—", "－"):
         s = s.replace(ch, "-")
     return s
+
+
+def _number(s: str):
+    """数值字符串 → Decimal；不是数值则返回 None。
+
+    用 Decimal 而不是 float：0.7 与 0.70、1700 与 1700.0 应当算同一个值，
+    而浮点数会把「看起来相等」和「真相等」搅在一起。
+    """
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def numbers_in(text: str):
+    """原文里出现的全部数值（按完整 token，不按子串）。"""
+    return {Decimal(m.group()) for m in NUM.finditer(norm(text))}
 
 
 def strings_of(node):
@@ -89,17 +114,17 @@ def main():
                 src_path = p
                 break
     if not src_path or not os.path.exists(src_path):
-        print(f"找不到原文文本：{src_path}")
         print("本项目未附原文，事实核对无法执行，跳过（不算失败）。")
         print("有原文时把 PDF 抽成 _src/paper.txt 再跑，这一关才有意义。")
         return 0
 
     with open(src_path, encoding="utf-8", errors="replace") as f:
         src = norm(f.read())
-    # 原文里数值可能写在括号、单位前后，用边界宽松匹配
-    body = src
+    body_numbers = numbers_in(src)
 
     allow, why = load_allow(os.path.join(proj, "_src", "facts_allow.txt"))
+    allow_numbers = {_number(x) for x in allow}
+    allow_numbers.discard(None)
 
     seen, ok, miss, skipped = set(), [], [], []
     for s in strings_of(cfg):
@@ -108,9 +133,10 @@ def main():
             if key in seen:
                 continue
             seen.add(key)
-            if num in allow:
+            val = _number(num)
+            if num in allow or (val is not None and val in allow_numbers):
                 skipped.append((num, ctx))
-            elif num in body:
+            elif val is not None and val in body_numbers:
                 ok.append((num, ctx))
             else:
                 miss.append((num, ctx))

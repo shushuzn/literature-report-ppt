@@ -65,10 +65,16 @@ def est_lines(text: str, size_pt: float, width_in: float, safety=None) -> int:
 
 
 def block_h(text: str, size_pt: float, width_in: float, pad_in: float = 0.0,
-            safety=None) -> float:
-    """文本块所需高度（英寸）"""
+            safety=None, line_h=None) -> float:
+    """文本块所需高度（英寸）。
+
+    行高倍数默认取 `Style.line_h`（1.24）。这里以前写了一个不存在的模块
+    常量 LINE_H，函数一调用就 NameError——它被 `pptkit.__init__` 导出，
+    属于公开 API，必须能真跑。
+    """
     n = est_lines(text, size_pt, width_in, safety)
-    return n * size_pt * LINE_H / 72.0 + pad_in
+    lh = Style().line_h if line_h is None else line_h
+    return n * size_pt * lh / 72.0 + pad_in
 
 
 def last_line_ratio(text: str, size_pt: float, width_in: float, safety=None) -> float:

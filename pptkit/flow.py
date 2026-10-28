@@ -59,6 +59,24 @@ def page_texts(base, page, st):
         add("封面 副标题", page.get("title_en"), st.slide_w * 0.88)
     elif t == "section":
         add("章节 导语", page.get("lead"), st.slide_w * 0.88)
+    elif t == "compare":
+        # 与 pages.compare 的版式常量保持一致：两条栏、中缝 0.72in、栏内边距 0.26in。
+        cw = (st.slide_w - 2 * st.margin_x - 0.72) / 2
+        w = cw - 2 * 0.26
+        for side in ("left", "right"):
+            col = page.get(side)
+            if not isinstance(col, dict):
+                continue
+            label = col.get("label") or ""
+            add(f"对照栏「{label}」标签", col.get("tag"), w)
+            add(f"对照栏「{label}」栏目名", label, w)
+            for p in col.get("points") or []:
+                if isinstance(p, str):
+                    add("对照要点", "· " + p, w)
+                else:
+                    text = ("· " + (p.get("name") + "　" if p.get("name") else "")
+                            + (p.get("desc") or p.get("body") or ""))
+                    add("对照要点", text, w)
     elif t == "fields_image":
         w = _right_col(base, page, st) or st.inner_w
         for f in page.get("fields") or []:
@@ -136,7 +154,15 @@ def orphan_rows(base, page, st, pt=None):
     return sorted(rows, key=lambda r: r[2])
 
 
+def orphan_limit(st):
+    """孤行阈值：`style.orphan_ratio`，0 表示回落到模块默认值。
+
+    生成、预检、导出说明都从这里取同一个数，避免一处 0.18、一处用配置值。
+    """
+    return ORPHAN_RATIO if st.orphan_ratio <= 0 else st.orphan_ratio
+
+
 def has_orphan(base, page, st, pt=None):
     """该字号下是否存在孤行。字号自适应用它否掉「排得下但难看」的一档。"""
-    limit = ORPHAN_RATIO if st.orphan_ratio <= 0 else st.orphan_ratio
+    limit = orphan_limit(st)
     return any(r[2] < limit for r in orphan_rows(base, page, st, pt))

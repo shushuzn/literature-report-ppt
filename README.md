@@ -25,9 +25,11 @@ python tools/intake.py --calc --pages 5 --minutes 5 --body-pt 14
 
 | 项目 | 内容 | 页数 |
 |---|---|---|
-| `projects/_template` | 八种页面类型的可运行样例（新建项目从这里抄） | 9 页 |
+| `projects/_template` | 常用版式的可运行样例（引擎共 10 种版式，新建项目从这里抄） | 9 页 |
 
 具体汇报项目只留在本地：`projects/*` 默认忽略，只保留 `_template`。汇报成品、讲稿、核对记录与论文插图都不入库。
+模板样例稿 `projects/_template/示例_全部页面类型.pptx` 同样不入库，需要时用
+`python tools/build.py projects/_template/content.yaml` 生成（每次重存都会改 zip 元数据，入库只会制造噪声）。
 
 ---
 
@@ -39,7 +41,7 @@ pptkit/                引擎（与具体文献无关）
 ├── theme.py           默认样式的别名（旧脚本兼容，不随配置变）
 ├── metrics.py         文本度量：估算换行数、块高、末行占比
 ├── engine.py          Deck：文本 / 卡片 / 图片框 / 讲稿备注
-├── pages.py           页面类型注册表（8 种版式，一页一个函数）
+├── pages.py           页面类型注册表（10 种版式，一页一个函数）
 ├── template.py        deck 配置解析与组装（兼容早期五段式配置）
 └── compliance.py      合规核对
 
@@ -49,9 +51,10 @@ projects/<项目>/
 └── figs/              自论文抽取的配图（不入库）
 
 tools/
-├── verify.py          全检入口：文风 → 孤行 → 生成 → 合规 → 版式
+├── verify.py          全检入口：文风 → 孤行 → 综述 → 讲稿时长 → 事实 → 生成 → 预览 → 合规 → 版式
 ├── style_check.py     文风体检（AI 腔句式、空标题、用词密度）
 ├── check_text.py      孤行预检（按各页版式算宽度）
+├── review_check.py    综述门禁（时间轴、年代跨度、单篇口吻）
 ├── intake.py          开工参数与字数预算：页数、时长、字号 → 每页写多少字
 ├── fact_check.py      事实核对：配置里的数字逐个回原文找
 ├── note_budget.py     讲稿时长门禁（必讲 ≤ 限时，全文 ≤ 限时 × 语速 × (1+冗余)）
@@ -59,7 +62,7 @@ tools/
 ├── check.py           合规核对
 ├── audit_all.py       版式验收：全部页面 × 九个维度（核心门禁）
 ├── audit_gaps.py      间隔诊断（量某区域内每行的实际行间距）
-├── export_notes.py    讲稿导出：notes → Markdown，估每页用时
+├── export_notes.py    讲稿导出：notes → 纯文本（可选 Markdown），估每页用时
 └── export_preview.ps1 导出逐页预览图
 
 requirements.txt       运行依赖
@@ -68,19 +71,20 @@ docs/
 ├── 汇报要求.md        某次作业的原文存档（输入样例，非框架标准）
 ├── 使用说明.md        换课题的操作步骤、阈值从哪来
 ├── 文风规范.md        标题写法、AI 腔清单、规则来源
-├── 页面类型.md        八种版式的字段参考
+├── 页面类型.md        10 种版式的字段参考
 └── 合规核对.md        核对方法：判什么、阈值从哪个字段读
 ```
 
 ## 常用命令
 
 ```bash
-# 全检（推荐）：文风体检 → 孤行预检 → 生成 → 合规核对 → 版式验收
+# 全检（推荐）：文风 → 孤行 → 综述 → 讲稿时长 → 事实 → 生成 → 预览 → 合规 → 版式
 python tools/verify.py projects/<项目>/content.yaml
 python tools/verify.py --all                                # 全部项目，末尾给汇总
 
-# 讲稿：notes → Markdown（每页字数与用时，按 220 字/分钟估）
+# 讲稿：notes → 纯文本（每页字数与用时，语速取 compliance.chars_per_min）
 python tools/export_notes.py projects/<项目>/content.yaml
+python tools/export_notes.py projects/<项目>/content.yaml --md   # 需要 Markdown 时
 
 # 只看页面清单，不生成
 python tools/build.py projects/<项目>/content.yaml --pages
@@ -88,10 +92,13 @@ python tools/build.py projects/<项目>/content.yaml --pages
 # 也可以单跑
 python tools/style_check.py projects/<项目>/content.yaml   # 文风体检
 python tools/check_text.py projects/<项目>/content.yaml    # 孤行预检
+python tools/review_check.py projects/<项目>/content.yaml  # 综述门禁
+python tools/note_budget.py projects/<项目>/content.yaml   # 讲稿时长
+python tools/fact_check.py projects/<项目>/content.yaml    # 事实核对
 python tools/build.py      projects/<项目>/content.yaml    # 生成
 python tools/check.py <pptx> -c projects/<项目>/content.yaml
 python tools/audit_all.py <pptx> <preview目录>
-python tools/audit_gaps.py projects/<项目>/材料/preview/slide2.png 6.18 1.05 12.95 6.60
+python tools/audit_gaps.py <preview目录>/slide2.png 6.18 1.05 12.95 6.60
 
 # 导出逐页预览图（改完 PPT 后目视检查用；需显式传路径）
 powershell -File tools/export_preview.ps1 -Ppt <pptx> -Out <preview目录>
@@ -109,14 +116,15 @@ powershell -File tools/export_preview.ps1 -Ppt <pptx> -Out <preview目录>
 |---|---|---|---|---|
 | 1 | 文风体检 | `style_check.py` | 对偶转折、口号收尾、空标题、用词密度 | 动手前 |
 | 2 | 孤行预检 | `check_text.py` | 每段文字断行后末行占比是否过低 | 生成前 |
-| 3 | 讲稿时长 | `note_budget.py` | 必讲 ≤ 限时、全文 ≤ 限时 × (1+冗余) | 生成前 |
-| 4 | 事实核对 | `fact_check.py` | 配置里每个数字能否在原文找到 | 生成前 |
-| 5 | 生成自检 | `build.py` | 字号是否 ≥ `style.min_pt`、内容是否放得下 | 生成时 |
-| 6 | 预览导出 | `export_preview.ps1` | 逐页 PNG，必须比 pptx 新 | 生成后 |
-| 7 | 合规核对 | `check.py` | 页数 / 字体 / 字号 / 配图 / 必填项 / 每页字数 | 生成后 |
-| 8 | 版式验收 | `audit_all.py` | 每页跑九个维度（见下表） | 生成后（需预览图） |
+| 3 | 综述门禁 | `review_check.py` | 时间轴在不在、跨度够不够、有无单篇口吻（无 `review:` 段则跳过） | 生成前 |
+| 4 | 讲稿时长 | `note_budget.py` | 必讲 ≤ 限时、全文 ≤ 限时 × (1+冗余) | 生成前 |
+| 5 | 事实核对 | `fact_check.py` | 配置里每个数字能否在原文找到 | 生成前 |
+| 6 | 生成自检 | `build.py` | 字号是否 ≥ 该页下限、内容是否放得下 | 生成时 |
+| 7 | 预览导出 | `export_preview.ps1` | 逐页 PNG，必须比 pptx 新 | 生成后 |
+| 8 | 合规核对 | `check.py` | 页数 / 字体 / 字号 / 配图 / 必填项 / 每页字数 | 生成后 |
+| 9 | 版式验收 | `audit_all.py` | 每页跑九个维度（见下表） | 生成后（需预览图） |
 
-第 6 道由 `verify.py` 自动调用。单独跑 `audit_all.py` 时会先核对图的时间戳：
+第 7 道由 `verify.py` 自动调用。单独跑 `audit_all.py` 时会先核对图的时间戳：
 图比稿子旧、或某页缺图，直接退出码 2，不出「全部通过」——拿旧图审计，
 量的是上一版版面，比不审更糟。
 
@@ -210,7 +218,7 @@ U+2010–U+2BFF 区间的箭头、破折号、℃ 在微软雅黑里按**全角*
 
 **十五、AI 腔不靠肉眼扫，靠规则表。** 「不是…而是」「而非」「一句话」「值得注意的是」
 这类句式单看每句都通顺，连读十句才露馅，人眼一遍遍扫必然漏。`tools/style_check.py`
-把清单做成正则，逐字段逐句报位置。第一遍跑 energy-materials 命中 22 处（严重 10），
+把清单做成正则，逐字段逐句报位置。第一份综述稿曾命中 22 处（严重 10），
 改完清零。规则表抓不住空洞，只抓句式，所以它排在第一道、不排最后一道。
 
 **十六、孤行预检偏乐观，文案改完必须用渲染图复核。** `check_text.py` 按字符宽度
@@ -289,7 +297,7 @@ captions」与 High Bridge Academy 第 1 条「no fragments, no colons」——
 **二十二、预览图不是附件，是门禁的输入。** 版式审计量的是 PNG 像素，
 而导图一直是独立的手工步骤：改了 `pad_v`、重建 pptx，图还是上一版的，
 审计照样「全部通过」（它量的是旧版面），汇报时才发现卡片贴框。
-两处补上：`verify.py` 于生成后自动导图（第 5/7 步），导不出就判失败、
+两处补上：`verify.py` 于生成后自动导图（第 7 步），导不出就判失败、
 不拿旧图顶替；`audit_all.py` 单独跑时先核对时间戳，图比 pptx 旧或缺图
 直接退出码 2。**凡是审计依赖的中间产物，都要在门禁里生成并校验新鲜度。**
 
@@ -302,16 +310,18 @@ captions」与 High Bridge Academy 第 1 条「no fragments, no colons」——
 40 Wh/kg）、把 85 写成 80、把「保持 71.4%」写成「不衰减」——都是讲的时候会被
 当场问住的错。`tools/fact_check.py` 把配置里的数字全抽出来，逐个到 `_src/paper.txt`
 里找；找不到就报出来，要么改数，要么进 `_src/facts_allow.txt` 并写清来源
-（影响因子、分区这类论文里没有的外部数据）。这是第 4 道门禁，生成前就拦。
+（影响因子、分区这类论文里没有的外部数据）。这是第 5 道门禁，生成前就拦。
 
 另外：python-pptx 的 `font.name` 只作用于西文，中文必须在 `a:rPr` 下写 `a:ea`
 节点指定东亚字体。中文长句换行易留孤行，用 `tools/check_text.py` 检出。
 
 ## 环境
 
-- Python：`C:\Users\35234\.workbuddy\binaries\python\envs\default\Scripts\python.exe`
+- Python 3.10+，命令按环境写成 `python`（Windows 上通常是 `py` 或 `python`）
 - 依赖：`python -m pip install -r requirements.txt`（python-pptx / PyYAML / Pillow / numpy），
   抽图另需 `pymupdf`
 - 预览导出依赖本机 Microsoft PowerPoint（COM 接口）
 - `tools/export_preview.ps1` 含中文路径，必须存为 UTF-8 with BOM，
   否则旧版命令行宿主会按 ANSI 解析导致路径乱码
+- 测试：`python -m unittest discover -s tests`
+- 许可：MIT，见 [LICENSE](LICENSE)

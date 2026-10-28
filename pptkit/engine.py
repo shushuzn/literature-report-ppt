@@ -386,7 +386,9 @@ class Deck:
     # ---------- 输出 ----------
 
     def save(self, path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        # 允许 `Deck().save("out.pptx")`：dirname 为空时不能拿 "" 去 makedirs。
+        parent = os.path.dirname(os.path.abspath(path))
+        os.makedirs(parent, exist_ok=True)
         self.prs.save(path)
         return path
 

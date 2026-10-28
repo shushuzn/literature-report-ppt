@@ -1,0 +1,8 @@
+# 二进制文件不做文本合并/换行转换；PowerPoint 稿子每次重存都会改 zip 元数据，
+# 让 git 按二进制处理，避免产生无意义的 diff。
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.ps1 text eol=crlf

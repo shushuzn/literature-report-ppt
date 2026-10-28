@@ -2,7 +2,7 @@
 """版式验收：对**每一页**、**每个维度**做量化检查。
 
 曾经反复出现排版问题，共同原因是检查维度不全、且只查被投诉的那一页。
-本脚本把版式验收系统化——八个维度全部对所有页跑一遍：
+本脚本把版式验收系统化——九个维度全部对所有页跑一遍：
 
   1. 越界      所有元素是否都在页面内
   2. 重叠      非包含关系的元素是否互相压盖
@@ -15,7 +15,7 @@
   9. 栏内填充  各栏底部是否留出大片空白
 
 用法：
-    python tools/audit_all.py 汇报材料/生物塑料汇报_仿生分层膜.pptx 汇报材料/preview
+    python tools/audit_all.py <pptx> <preview目录> [content.yaml]
 """
 import os
 import sys
@@ -25,6 +25,10 @@ import numpy as np
 from PIL import Image
 from pptx import Presentation
 from pptx.util import Emu
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 # 画布与正文区位置在 main() 里按实际 pptx 与配置赋值，不预设 16:9。
 # 换 4:3、换更大字号的项目时，下面的像素↔英寸换算才仍然成立。
@@ -403,9 +407,11 @@ def check_preview_fresh(pptx, pdir, n):
 
 
 def main():
-    global SLIDE_W_IN, SLIDE_H_IN, BODY_TOP
-    pptx = sys.argv[1] if len(sys.argv) > 1 else "汇报材料/生物塑料汇报_仿生分层膜.pptx"
-    pdir = sys.argv[2] if len(sys.argv) > 2 else "汇报材料/preview"
+    global SLIDE_W_IN, SLIDE_H_IN, BODY_TOP, ORPHAN_MIN
+    if len(sys.argv) < 3:
+        print("用法：python tools/audit_all.py <pptx> <preview目录> [content.yaml]")
+        return 2
+    pptx, pdir = sys.argv[1], sys.argv[2]
     config = sys.argv[3] if len(sys.argv) > 3 else None
 
     prs = Presentation(pptx)
@@ -414,6 +420,8 @@ def main():
     st = _load_style(config)
     if st is not None:
         BODY_TOP = st.body_top
+        # 孤行阈值与生成、预检同一处取：style.orphan_ratio（0 用默认 0.18）。
+        ORPHAN_MIN = st.orphan_ratio if st.orphan_ratio > 0 else ORPHAN_MIN
     total = 0
     print("=" * 76)
     print("版式验收（全部页面 × 九个维度）")

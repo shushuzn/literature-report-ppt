@@ -32,6 +32,26 @@ def _rgb(v):
     return RGBColor.from_string(s.upper())
 
 
+def _bool(v, key):
+    """严格解析布尔值。
+
+    之前用 `bool(v)`：YAML 里写成字符串 `"false"` 时会得到 True，
+    配置看着是关、实际是开，而且没有任何报错。现在只认 true/false
+    （以及 YAML 已解析出的 bool / 0 / 1），其余一律报错。
+    """
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)) and v in (0, 1):
+        return bool(v)
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ("true", "yes", "on", "1"):
+            return True
+        if s in ("false", "no", "off", "0"):
+            return False
+    raise ValueError(f"style.{key} 要写 true 或 false，收到 {v!r}")
+
+
 @dataclass(frozen=True)
 class Style:
     # ---- 字体 ----
@@ -191,7 +211,7 @@ class Style:
             elif k in ("cn_font", "en_font"):
                 kw[k] = str(v)
             elif k in ("cards_fit", "auto_pt", "auto_pt_orphan", "bullets_align"):
-                kw[k] = bool(v)
+                kw[k] = _bool(v, k)
             else:
                 kw[k] = float(v)
         return replace(cls(), **kw)

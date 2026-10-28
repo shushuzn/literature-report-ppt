@@ -14,6 +14,10 @@ from pptx.oxml.ns import qn
 from .style import Style
 
 LATIN = re.compile(r"[A-Za-z]")
+# 东亚字体只对含中日韩文字/全角标点的 run 有意义。纯西文的 run 不带 a:ea
+# 是正常的：PowerPoint 手动编辑后这些 run 往往没有 ea 节点，旧逻辑会把
+# 它们全判成「中文字体错」。
+CJK = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]")
 _SPACE = re.compile(r"\s+")
 
 # 封面不该出现的东西。期刊卷期页与 DOI 在第 2 页的「发表期刊」字段里已经
@@ -124,7 +128,7 @@ def check(pptx_path, max_pages=None, require_image_pages=None,
         lo = (min_pt_pages or {}).get(si, st.min_pt)
         if sz is None or sz < lo:
             bad_size.append((si, sz, t[:34]))
-        if ea != st.cn_font:
+        if CJK.search(t) and ea != st.cn_font:
             bad_cn.append((si, ea, t[:34]))
         if LATIN.search(t) and latin != st.en_font:
             bad_en.append((si, latin, t[:34]))

@@ -17,7 +17,7 @@
 
    页数、顺序、版式全由这份列表决定，与具体文献无关。
 
-2. **旧格式（LEAFF 等早期项目）**——只写 cover / literature / mechanism /
+2. **旧格式（早期项目）**——只写 cover / literature / mechanism /
    performance / application 五段，由 `legacy_pages()` 自动转成上表的五页。
    保留它是为了老项目不必改配置，新项目不要再用。
 

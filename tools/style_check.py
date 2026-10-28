@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """文风体检：找出稿子里的 AI 腔和空标题。
 
-    python tools/style_check.py projects/energy-materials/content.yaml
+    python tools/style_check.py projects/<项目>/content.yaml
     python tools/style_check.py --all
-    python tools/style_check.py projects/energy-materials/content.yaml --strict
+    python tools/style_check.py projects/<项目>/content.yaml --strict
 
 为什么要有这一步
 ----------------
@@ -40,6 +40,10 @@ import re
 import sys
 
 import yaml
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

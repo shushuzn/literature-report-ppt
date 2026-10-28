@@ -17,6 +17,10 @@ sys.path.insert(0, ROOT)
 
 from pptkit import build_deck, resolve_pages, Style   # noqa: E402
 
+from _console import setup_console  # noqa: E402
+
+setup_console()
+
 
 def main():
     ap = argparse.ArgumentParser(description="按内容配置生成汇报 PPT")
@@ -60,10 +64,8 @@ def main():
             f"P{pg}:{pt:g}pt（区间 {lo:g}–{hi:g}）"
             for pg, pt, lo, hi in deck.auto_pt_log))
     print(f"低于该页字号下限：{len(bad) if bad else '无'}")
-    for pg, pt, txt in bad[:3]:
+    for pg, pt, txt in bad[:8]:
         print(f"    P{pg} {pt:g}pt {txt!r}")
-    for b in bad[:8]:
-        print("   ", b)
 
     if deck.warnings:
         print()

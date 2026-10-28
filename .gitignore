@@ -39,3 +39,6 @@ desktop.ini
 projects/*
 !projects/_template/
 汇报材料/
+
+# ---- 模板样例稿：由 content.yaml 生成，重建一次会改 zip 元数据 ----
+projects/_template/*.pptx

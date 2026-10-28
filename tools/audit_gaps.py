@@ -5,7 +5,7 @@
 上下位置列出来，间隔是否均匀一目了然，不必靠眼睛判断。
 
 用法：
-    python tools/audit_gaps.py 汇报材料/preview/slide2.png 6.18 1.05 12.95 6.60
+    python tools/audit_gaps.py <preview目录>/slide2.png 6.18 1.05 12.95 6.60
 
 参数：图片路径、区域左、上、右、下（英寸，相对整页）
 """
@@ -14,6 +14,10 @@ import sys
 
 import numpy as np
 from PIL import Image
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 DEFAULT_W = 13.333      # 未给 --slide-w 时按 16:9
 

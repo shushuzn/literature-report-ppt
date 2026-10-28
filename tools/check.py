@@ -2,8 +2,8 @@
 """合规核对：对生成的 pptx 逐项检查。
 
 用法：
-    python tools/check.py 汇报材料/生物塑料汇报_仿生分层膜.pptx
-    python tools/check.py <pptx> -c projects/LEAFF/content.yaml   # 带上期望值
+    python tools/check.py <pptx>
+    python tools/check.py <pptx> -c projects/<项目>/content.yaml   # 带上期望值
 
 退出码：0 全部通过；1 存在 ERROR。
 """
@@ -16,7 +16,12 @@ import yaml
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from pptkit import check, Style     # noqa: E402
+from pptkit import check, Style, resolve_pages          # noqa: E402
+from pptkit.pages import page_min_pt                   # noqa: E402
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 
 def main():
@@ -41,12 +46,13 @@ def main():
         kw["chars_per_page"] = c.get("chars_per_page")
         kw["cover_allow"] = c.get("cover_allow")
         kw["style"] = Style.from_config(cfg.get("style"))
-        # 页级字号覆盖：某页写了 body_pt，该页下限就按它算，不牵动其他页。
+        # 页级字号覆盖：某页写了 body_pt / min_pt，该页下限就按它算。
+        # 不能再用 min(全篇下限, 页字号)：那会让声明 22pt 的页面被 16pt 放过。
         base_min = kw["style"].min_pt
         kw["min_pt_pages"] = {
-            i: float(pg.get("min_pt", min(base_min, float(pg["body_pt"]))))
-            for i, pg in enumerate(cfg.get("deck") or [], 1)
-            if pg.get("body_pt")}
+            i: page_min_pt(pg, base_min)
+            for i, pg in enumerate(resolve_pages(cfg), 1)
+            if pg.get("body_pt") is not None or pg.get("min_pt") is not None}
 
     path = args.pptx if os.path.isabs(args.pptx) else os.path.join(ROOT, args.pptx)
     findings, stats = check(path, **kw)

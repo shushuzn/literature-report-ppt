@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """全检：按顺序跑完所有质量门禁。
 
-    python tools/verify.py projects/energy-materials/content.yaml
+    python tools/verify.py projects/<项目>/content.yaml
     python tools/verify.py --all          # 跑 projects/*/content.yaml 全部项目
 
 依次执行：
@@ -23,6 +23,10 @@ import glob
 import os
 import subprocess
 import sys
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
@@ -73,7 +77,8 @@ def export_preview(pptx):
         [exe, "-NoProfile", "-ExecutionPolicy", "Bypass",
          "-File", os.path.join(ROOT, "tools", "export_preview.ps1"),
          "-Ppt", path, "-Out", out],
-        cwd=ROOT, capture_output=True, text=True, errors="replace")
+        cwd=ROOT, capture_output=True, text=True,
+        encoding="utf-8", errors="replace")
     text = ((r.stdout or "") + (r.stderr or "")).strip()
     if r.returncode != 0:
         print("预览导出失败：")

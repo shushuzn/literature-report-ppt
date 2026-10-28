@@ -24,12 +24,14 @@ import yaml
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from pptkit.flow import ORPHAN_RATIO, orphan_rows          # noqa: E402
-from pptkit.pages import choose_body_pt                   # noqa: E402
+from pptkit.flow import orphan_limit, orphan_rows          # noqa: E402
+from pptkit.pages import choose_body_pt, page_style        # noqa: E402
 from pptkit.style import Style                            # noqa: E402
 from pptkit.template import resolve_pages                 # noqa: E402
 
-THRESHOLD = ORPHAN_RATIO
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 
 def main():
@@ -43,19 +45,20 @@ def main():
     base = os.path.join(ROOT, cfg.get("base_dir", "."))
     pages = resolve_pages(cfg)
     st = Style.from_config(cfg.get("style"))
+    threshold = orphan_limit(st)
 
     print("=" * 74)
-    print(f"孤行预检（末行占比 < {THRESHOLD:.2f} 视为孤行；字号取排版实际值）")
+    print(f"孤行预检（末行占比 < {threshold:.2f} 视为孤行；字号取排版实际值）")
     print("=" * 74)
 
     rows = []
     for pg, p in enumerate(pages, 1):
-        pt = float(p.get("body_pt") or st.body_pt)
-        page_st = st.scaled(body_pt=pt, min_pt=min(st.min_pt, pt))
+        page_st = page_style(st, p)
+        pt = page_st.body_pt
         t = p.get("type")
-        if p.get("auto_pt", st.auto_pt) and t not in ("cover", "section"):
+        if p.get("auto_pt", page_st.auto_pt) and t not in ("cover", "section"):
             pt, _, _ = choose_body_pt(p, base, page_st, t)
-            page_st = page_st.scaled(body_pt=pt, min_pt=min(st.min_pt, pt))
+            page_st = page_st.scaled(body_pt=pt)
         for tag, n, ratio, text in orphan_rows(base, p, page_st, pt):
             rows.append((pg, tag, ratio, n, text))
 
@@ -63,9 +66,9 @@ def main():
         print("没有需要换行的长文本，无需检查。")
         return 0
 
-    bad = [r for r in rows if r[2] < THRESHOLD]
+    bad = [r for r in rows if r[2] < threshold]
     for pg, tag, ratio, n, text in sorted(rows, key=lambda r: r[2]):
-        mark = "孤行" if ratio < THRESHOLD else "正常"
+        mark = "孤行" if ratio < threshold else "正常"
         print(f"[{mark}] P{pg} {tag[:16]:18s} {n}行 末行{ratio:.2f}  {text[:30]}")
     print()
     print(f"需改写：{len(bad)} 条")

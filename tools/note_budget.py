@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """讲稿时长门禁：按汇报限时与冗余比例算字数上限，超了就不许交。
 
-    python tools/note_budget.py projects/sodium-ion-capacitor/content.yaml
+    python tools/note_budget.py projects/<项目>/content.yaml
 
 配置写在 content.yaml 的 compliance 段：
 
@@ -31,6 +31,13 @@ import sys
 import yaml
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+from pptkit.template import resolve_pages  # noqa: E402
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 DEFAULT_BUFFER = 0.4
 DEFAULT_SPEED = 220.0
@@ -80,7 +87,7 @@ def measure(cfg):
     也算进可略，它确实要占讲稿版面。
     """
     out = []
-    for i, p in enumerate(cfg.get("deck") or [], 1):
+    for i, p in enumerate(resolve_pages(cfg), 1):
         t = p.get("title_cn") or p.get("title") or p.get("type", "")
         note = (p.get("notes") or "").strip()
         must, _ = split_optional(note)

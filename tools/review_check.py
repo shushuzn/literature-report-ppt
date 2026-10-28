@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """综述门禁：查「发展过程」这条线是否真的立得住。
 
-    python tools/review_check.py projects/energy-materials/content.yaml
+    python tools/review_check.py projects/<项目>/content.yaml
 
 研究论文的门禁（事实核对、讲稿预算、合规、版式）都在查「这一页做得对不对」，
 它们默认这份 deck 在讲一件事。综述不是：它要交的是**一个领域怎么走到今天**。
@@ -30,6 +30,15 @@ import re
 import sys
 
 import yaml
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+from pptkit.template import resolve_pages  # noqa: E402
+
+from _console import setup_console  # noqa: E402
+
+setup_console()
 
 YEAR = re.compile(r"(1[89]\d{2}|20\d{2})")
 
@@ -71,7 +80,7 @@ def main():
     with open(args.config, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     rv = cfg.get("review")
-    pages = cfg.get("deck") or []
+    pages = resolve_pages(cfg)
     name = os.path.basename(os.path.dirname(os.path.abspath(args.config)))
 
     print("=" * 70)

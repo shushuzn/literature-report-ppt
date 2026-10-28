@@ -196,8 +196,10 @@ def cover(deck: Deck, page: dict, base: str):
         lead.append(f"汇报人：{page['presenter']}")
     if page.get("advisor"):
         lead.append(f"指导老师：{page['advisor']}")
-    # roles：两列并列的署名组，如 [[PPT 制作, PPT 审核], [资料收集, 资料审核]]。
-    # 左列右对齐、右列左对齐，两列边缘对齐，中缝留固定间距；不靠全角空格凑位。
+    # roles：并列的署名组，如 [[PPT 制作, PPT 审核], [资料收集, 资料审核]]。
+    # 每行内部首列右对齐、其余列左对齐，整行以页面中线居中；只有一项的行
+    # 直接居中，不会因为落在「左列」而偏到一边。长署名按估算行数加高，
+    # 不靠固定行高硬塞。
     roles = [[str(c).strip() for c in row if str(c).strip()]
              for row in (page.get("roles") or [])]
     roles = [r for r in roles if r]
@@ -206,15 +208,24 @@ def cover(deck: Deck, page: dict, base: str):
     # 封面用 cover_pt，行高也要按 cover_pt 算：用 body_pt 的行高，正文一降字号
     # （比如 16pt）文本框就比字矮，字溢出框外，分隔线上下的留白就不对称了。
     LINE_INFO = st.lh_cover + 0.10   # 封面信息行距：正文行距搬到封面偏挤，多给一口气
+    GUTTER = 0.36                    # 并列署名之间的固定中缝
+    ncol = max((len(r) for r in roles), default=0)
+    col_w = min(2.9, (w - GUTTER * (ncol - 1)) / ncol) if ncol else 0.0
+    role_heights = []
+    for row in roles:
+        n = max(est_lines(cell, st.cover_pt, col_w, st.line_safety) for cell in row)
+        role_heights.append(max(st.lh_cover, n * st.lh_cover))
+
     total = TITLE_H
     if kicker:
         total += KICKER_H + GAP_KICKER
     if en_lines:
         total += GAP_TITLE_EN + len(en_lines) * st.lh_cover
     total += GAP_RULE + 0.014 + GAP_RULE
-    n_info = len(lead) + len(roles) + len(tail)
-    if n_info:
-        total += n_info * LINE_INFO - 0.10
+    info_heights = ([st.lh_cover] * len(lead) + role_heights
+                    + [st.lh_cover] * len(tail))
+    if info_heights:
+        total += sum(info_heights) + 0.10 * (len(info_heights) - 1)
 
     # 版面的视觉重心略高于几何中线，故上移 0.08in
     y = (st.slide_h - total) / 2 - 0.08
@@ -247,19 +258,20 @@ def cover(deck: Deck, page: dict, base: str):
                   align=PP_ALIGN.CENTER)
         y += LINE_INFO
 
-    if roles:
-        ncol = max(len(r) for r in roles)
-        gutter = 0.36
-        col_w = min(2.9, (w - gutter * (ncol - 1)) / ncol)
-        block_w = col_w * ncol + gutter * (ncol - 1)
-        left = st.slide_w / 2 - block_w / 2
-        for row in roles:
+    for row, rh in zip(roles, role_heights):
+        if len(row) == 1:
+            deck.text(st.slide_w / 2 - col_w / 2, y, col_w, rh,
+                      [(row[0], st.cover_pt, False, st.ink)],
+                      align=PP_ALIGN.CENTER)
+        else:
+            row_w = col_w * len(row) + GUTTER * (len(row) - 1)
+            left = st.slide_w / 2 - row_w / 2
             for j, cell in enumerate(row):
-                cx = left + j * (col_w + gutter)
+                cx = left + j * (col_w + GUTTER)
                 align = PP_ALIGN.RIGHT if j == 0 else PP_ALIGN.LEFT
-                deck.text(cx, y, col_w, st.lh_cover,
+                deck.text(cx, y, col_w, rh,
                           [(cell, st.cover_pt, False, st.ink)], align=align)
-            y += LINE_INFO
+        y += rh + 0.10
 
     for t in tail:
         deck.text(x, y, w, st.lh_cover, [(t, st.cover_pt, False, st.ink)],
@@ -819,6 +831,26 @@ PAGES = dict(cover=cover, section=section, compare=compare,
              bullets=bullets, timeline=timeline, stages=stages)
 
 
+def page_min_pt(page, base):
+    """该页的字号下限。
+
+    页级 `min_pt` 显式优先；只写了 `body_pt` 时，这个字号就是该页的下限——
+    页面声明「这页按 22pt 排」，不能因为全篇下限是 16pt 就悄悄压回 16pt。
+    页级覆盖本来就允许低于全篇值（见 docs/使用说明.md「按页改字号」）。
+    """
+    if page.get("min_pt") is not None:
+        return float(page["min_pt"])
+    if page.get("body_pt") is not None:
+        return float(page["body_pt"])
+    return float(base)
+
+
+def page_style(style, page):
+    """把页级 `body_pt` / `min_pt` 叠加到全篇样式上；只影响这一页。"""
+    body = float(page["body_pt"]) if page.get("body_pt") is not None else style.body_pt
+    return _replace(style, body_pt=body, min_pt=page_min_pt(page, style.min_pt))
+
+
 def _fits(page, base_dir, style, type_name):
     """在临时 deck 上试排一页，返回该字号是否放得下。
 
@@ -828,12 +860,14 @@ def _fits(page, base_dir, style, type_name):
 
     试排画在一个丢弃的 Presentation 上：幻灯片对象建完即弃，不影响成品。
     图片会被读一次（add_picture 要读文件），相对整体生成可以忽略。
+
+    这里**不吞异常**：缺图片、字段写错这类问题在试排时就要原样抛出来。
+    以前一律 `except Exception: return False`，会把「配置错了」说成
+    「这个字号放不下」，结果是在错误的字号上重试到下限，真正的原因
+    （路径拼错、字段缺失）反而被藏起来。
     """
     probe = Deck(style=style)
-    try:
-        PAGES[type_name](probe, page, base_dir)
-    except Exception:
-        return False
+    PAGES[type_name](probe, page, base_dir)
     return not probe.warnings
 
 
@@ -856,6 +890,8 @@ def choose_body_pt(page, base_dir, style, type_name):
     """
     hi = float(page.get("auto_pt_max") or style.auto_pt_max or style.body_pt + 4)
     lo = float(page.get("auto_pt_min") or style.auto_pt_min or style.min_pt)
+    # 区间下限不能低过本页的字号下限：自动排版挑出来的字号必须能过合规核对。
+    lo = max(lo, float(style.min_pt))
     hi = max(hi, lo)
     step = max(0.5, style.auto_pt_step)
     fit_only = None      # 第一个「放得下」的字号，做兜底
@@ -892,11 +928,8 @@ def render(deck, page, base_dir, index):
     if fn is None:
         raise ValueError(f"未知页面类型 {t!r}，可用：{'、'.join(PAGES)}")
     prev = deck.style
-    pt = page.get("body_pt")
-    if pt:
-        deck.style = _replace(
-            prev, body_pt=float(pt),
-            min_pt=float(page.get("min_pt", min(prev.min_pt, float(pt)))))
+    if page.get("body_pt") is not None or page.get("min_pt") is not None:
+        deck.style = page_style(prev, page)
     try:
         st = deck.style
         # 封面与章节页的字号是各自一套（cover_pt / section_title_pt），

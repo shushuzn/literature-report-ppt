@@ -13,6 +13,10 @@
 import argparse
 import math
 
+from _console import setup_console  # noqa: E402
+
+setup_console()
+
 # 正文占版心的比例。图文并茂的页面，图上占掉一半，右栏再留卡片边距，
 # 实际落字面积约为整页的四成；纯文字页能到六成。这是排版经验值，
 # 不是物理上限——写超了 build 会报放不下，写少了文字区间会报内容单薄。
