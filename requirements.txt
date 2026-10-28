@@ -1,0 +1,7 @@
+# 运行依赖（Python 3.10+）
+# 生成与合规核对
+python-pptx>=1.0.2
+PyYAML>=6.0
+Pillow>=9.0
+# 仅在版式验收（tools/audit_all.py）里用于读取渲染图统计像素
+numpy>=1.24

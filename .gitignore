@@ -1,0 +1,41 @@
+# ---- 生成物（可由 tools/ 下脚本重建，不入库）----
+汇报材料/preview/
+汇报材料/preview3/
+projects/*/preview/
+projects/*/材料/preview/
+
+# ---- PDF 抽取的中间产物（原文 Markdown / 逐页渲染图，可重新生成）----
+projects/*/_src/
+
+# ---- 工具运行目录（非项目源码，勿删但不必入库）----
+.workbuddy/
+
+# ---- 办公软件临时文件 ----
+~$*
+*.tmp
+*.bak
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python-version
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- 敏感信息 ----
+*.key
+*.token
+.env
+
+# ---- 具体汇报项目只留本地 ----
+# 报告成品、讲稿、核对记录与论文插图都不入库；仓库只保留模板与工具。
+projects/*
+!projects/_template/
+汇报材料/

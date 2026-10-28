@@ -1,0 +1,181 @@
+# ============================================================
+# 全部页面类型演示 —— 新建项目时把这个文件复制成
+#   projects/<新项目>/content.yaml
+# 再把每一页的 type 与字段改成自己的内容。
+#
+# 页面清单：python tools/build.py projects/_template/content.yaml --pages
+# 生成    ：python tools/build.py projects/_template/content.yaml
+# 全检    ：python tools/verify.py projects/_template/content.yaml --skip-audit
+#
+# 字段说明见 docs/页面类型.md。
+# ============================================================
+
+out: projects/_template/示例_全部页面类型.pptx
+base_dir: projects/_template          # 图片路径相对此目录
+
+# 标题模式：label = 任务名（文献汇报、综述提纲），thesis = 写判断（讲自己的工作）。
+# 本示例每页标题都是栏目名，故用 label；换成自己的研究时删掉这一行。
+title_mode: label
+
+# 样式段按需加，不写就用 pptkit/style.py 的默认值。常改的三项：
+#
+# style:
+#   body_pt: 18            # 全篇正文字号
+#   min_pt: 18             # 字号下限（合规查这条）
+#   auto_pt: true          # 字号自适应：每页在下面区间里自己挑
+#   auto_pt_min: 16
+#   auto_pt_max: 20
+#
+# 自适应是逐页的：字少的页排大撑满版心，字多的页退回一档不溢出，
+# 且不许把末行挤成一两个字。列宽被内容定死的页（timeline、多列栅格）
+# 关掉更好：在那一页写 `auto_pt: false`。详见 docs/使用说明.md「字号自适应」。
+
+# ---------------- 页面序列：顺序即页序 ----------------
+deck:
+
+  # ---- 1. 封面 ----
+  - type: cover
+    title_cn: 全部页面类型演示
+    title_en:
+      - Eight page layouts, one engine
+      - demo deck
+    presenter: 示例姓名
+    advisor: 示例导师
+
+  # ---- 2. 章节过渡页 ----
+  # 序号字段用 index，不要写 no —— YAML 会把裸键 no 当成布尔 False。
+  - type: section
+    index: "01"
+    title: 图文混排版式
+    lead:
+      - 左图右文适合「一图说明一件事」
+      - 上图下卡适合「多图对多结论」
+
+  # ---- 3. 左图 + 右字段（标签加粗，值与标签同行起排）----
+  - type: fields_image
+    title: 左图右字段（演示）
+    image: figs/sample_tall.png
+    caption: 竖幅占位图（4:5）
+    fields:
+      - label: 论文题目
+        value:
+          - 这里放完整题目；
+          - 可以拆成多行控制断行
+      - label: 发表期刊
+        value: 期刊名（卷期号）
+      - label: 分区
+        value: 中科院 1 区 TOP（JCR Q1）
+      - label: 影响因子
+        value: 待填
+      - label: 作者信息
+        value: 第一作者、通讯作者
+      - label: 发表时间
+        value: 2026 年
+
+  # ---- 4. 左图 + 右卡片竖排（卡片高度由文案反推）----
+  - type: image_cards
+    title: 左图右卡（演示）
+    image: figs/sample_wide.png
+    caption: 宽幅占位图（16:9）
+    cards:
+      - name: 第一个组分
+        desc: 说明这张卡承担什么作用，不超过两行。
+      - name: 第二个组分
+        desc: 两条都控制在两行内，卡片才好看。
+      - desc:
+          - 没有标题的卡片用来放流程或结论，
+          - 值写成列表即可手动断行。
+
+  # ---- 5. 上方一行图 + 下方卡片栅格（图与卡片共用同一套栅格）----
+  - type: image_grid_cards
+    title: 上图下卡（演示）
+    images:
+      - path: figs/sample_wide.png
+        caption: 图一说明
+      - path: figs/sample_wide.png
+        caption: 图二说明
+    items:
+      - name: 力学性能
+        data: 数值 + 对比基准
+        cause: 结构或界面层面的原因
+      - name: 稳定性
+        data: 数值 + 对比基准
+        cause: 结构或界面层面的原因
+      - name: 转换效率
+        data: 数值 + 对比基准
+        cause: 结构或界面层面的原因
+      - name: 循环寿命
+        data: 数值 + 对比基准
+        cause: 结构或界面层面的原因
+
+  # ---- 6. 纯卡片双列（无图，行间余量均分）----
+  - type: cards_grid
+    title: 双列卡片（演示）
+    columns: 2
+    items:
+      - name: 结论一
+        desc: 每条结论一行写完，两列时单格最多两行。
+      - name: 结论二
+        desc: 文案过长会让整行卡片一起变高。
+      - name: 结论三
+        desc: 四到六条最合适。
+      - name: 结论四
+        desc: 再多就换成要点列表。
+
+  # ---- 7. 两栏对照（旧 vs 新、优点 vs 代价；中间一条竖线）----
+  - type: compare
+    title: 两栏对照（演示）
+    item_gap_pt: 16
+    left:
+      tag: 旧范式
+      label: 自上而下
+      points:
+        - 每条点控制在一行内
+        - 两栏条数尽量相同
+        - 左右才平衡
+        - 多的一侧会显重
+    right:
+      tag: 新范式
+      label: 自下而上
+      points:
+        - 超出一行就会折行
+        - 两栏高矮不齐也没关系
+        - 整块以高的一侧居中
+        - 竖线只画到内容底部
+    notes: |
+      讲稿写在这里，生成时会写进 PowerPoint 的演讲者备注。
+      演示备注功能：任意页面都可以加 notes，不影响投影。
+
+  # ---- 8. 要点列表（导语 + 条目；条目可带加粗小标题）----
+  - type: bullets
+    title: 要点列表（演示）
+    lead:
+      - 导语一段，说明这一页在整场汇报里的位置。
+    items:
+      - name: 第一点
+        desc: 加粗小标题 + 说明文字，适合「名词 + 解释」。
+      - name: 第二点
+        desc: 段间距离可调，默认 12pt。
+      - 纯字符串条目也支持，直接排成一行。
+      - 条目控制在 5 条以内，20pt 下每条约占两行。
+
+  # ---- 9. 纯卡片单列（整栏竖排，卡片间距均分到底部）----
+  - type: cards_grid
+    title: 单列卡片（演示）
+    columns: 1
+    items:
+      - name: 后续工作一
+        desc: 单列时每张卡片可以用满整页宽度，适合放长一点的句子。
+      - name: 后续工作二
+        desc: 卡片间距会在 0.14–0.42in 之间自动均分，铺满正文区。
+      - name: 后续工作三
+        desc: 三条到四条最舒服。
+
+# ---------------- 合规核对期望值 ----------------
+# max_pages 不写则该配置的页数即为上限（本文件 9 页）。
+compliance:
+  max_pages: 9
+  require_image_pages: [3, 4, 5]
+  required_text:
+    1: [汇报人]
+    3: [论文题目, 发表期刊]
