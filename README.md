@@ -21,6 +21,15 @@ python tools/intake.py --calc --pages 5 --minutes 5 --body-pt 14
 - 文风要求 → [docs/文风规范.md](docs/文风规范.md)
 - 核对方法 → [docs/合规核对.md](docs/合规核对.md)
 
+## 作为技能安装
+
+仓库根目录本身就是技能目录：`SKILL.md` 是唯一入口，只写 `name` 与 `description`，不含任何
+平台专用的面板配置。把整个仓库放进技能目录即可按 `$literature-report-ppt` 调用；
+`SKILL.md` 是给 AI 看的操作流程，不是给人看的说明——人看本文件。
+
+Linux / 无 PowerPoint 的机器上，预览图用 `tools/export_preview.py`（LibreOffice + pdftoppm）导出，
+再用 `tools/audit_all.py` 审计；有 PowerPoint 时 `tools/verify.py` 会自动走完这一步。
+
 现有项目：
 
 | 项目 | 内容 | 页数 |
